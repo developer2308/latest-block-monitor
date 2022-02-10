@@ -5,9 +5,10 @@ import {
   CardHeader,
   Grid,
   Typography,
+  Button,
 } from "@mui/material";
 import { DataGrid } from "@mui/x-data-grid";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Web3 from "web3";
 import Config from "../config";
 
@@ -38,42 +39,73 @@ const columns = [
 const Block = () => {
   const [block, setBlock] = useState();
   const [transactions, setTransactions] = useState([]);
+  const [timer, setTimer] = useState();
+  const [lastTime, setLastTime] = useState();
 
   const getLatestBlock = async () => {
     const latestBlockNumber = await web3.eth.getBlockNumber();
-    const latestBlock = await web3.eth.getBlock(latestBlockNumber);
-    setBlock(latestBlock);
+    console.log("latestNumber=", latestBlockNumber, block?.number);
+    setLastTime(new Date());
+    if (latestBlockNumber !== block?.number) {
+      const latestBlock = await web3.eth.getBlock(latestBlockNumber);
+      setBlock(latestBlock);
 
-    const batchRequest = new web3.BatchRequest();
-    const newTransactions = [];
-    batchRequest.add(
-      latestBlock.transactions.map((transactionHash) => {
-        return web3.eth.getTransaction(
-          transactionHash,
-          (error, transaction) => {
-            newTransactions.push(transaction);
-            if (newTransactions.length === latestBlock.transactions.length) {
-              const filtered = newTransactions.filter((txn) => txn.hash);
-              setTransactions(filtered);
-              console.log(filtered);
+      const batchRequest = new web3.BatchRequest();
+      const newTransactions = [];
+
+      latestBlock.transactions.forEach((transactionHash) => {
+        batchRequest.add(
+          web3.eth.getTransaction.request(
+            transactionHash,
+            (error, transaction) => {
+              newTransactions.push(transaction);
+              if (newTransactions.length === latestBlock.transactions.length) {
+                const filtered = newTransactions.filter((txn) => txn.hash);
+                setTransactions(filtered);
+              }
             }
-          }
+          )
         );
-      })
-    );
-    batchRequest.execute();
+      });
+      batchRequest.execute();
+    }
+  };
 
-    console.log("latestNumber=", latestBlockNumber, latestBlock);
+  const toggle = () => {
+    if (timer) {
+      clearInterval(timer);
+      setTimer(null);
+    } else {
+      const timer = setInterval(getLatestBlock, Config.refreshInterval);
+      setTimer(timer);
+    }
   };
 
   useEffect(() => {
-    getLatestBlock();
+    console.log("useEffect interval");
+    const newTimer = setInterval(getLatestBlock, Config.refreshInterval);
+    setTimer(newTimer);
+
+    return () => {
+      clearInterval(timer);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
     <Box>
-      <Card>
-        <CardHeader>Latest Block Details</CardHeader>
+      <Button
+        variant="contained"
+        onClick={() => {
+          toggle();
+        }}
+        sx={{ mr: 2 }}
+      >
+        {timer ? "Pause" : "Resume"}
+      </Button>
+      <span>Last updated time: {lastTime?.toLocaleTimeString()}</span>
+      <Card sx={{ my: 2 }}>
+        <CardHeader title="Latest Block Details" />
         <CardContent>
           <Grid container>
             <Grid item sm={4}>
