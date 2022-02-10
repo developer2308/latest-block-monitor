@@ -8,7 +8,7 @@ import {
   Button,
 } from "@mui/material";
 import { DataGrid } from "@mui/x-data-grid";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Web3 from "web3";
 import Config from "../config";
 
@@ -41,12 +41,14 @@ const Block = () => {
   const [transactions, setTransactions] = useState([]);
   const [timer, setTimer] = useState();
   const [lastTime, setLastTime] = useState();
+  const blockNumber = useRef();
 
   const getLatestBlock = async () => {
     const latestBlockNumber = await web3.eth.getBlockNumber();
-    console.log("latestNumber=", latestBlockNumber, block?.number);
+    console.log("latestNumber=", latestBlockNumber, blockNumber.current);
     setLastTime(new Date());
-    if (latestBlockNumber !== block?.number) {
+    if (latestBlockNumber !== blockNumber.current) {
+      blockNumber.current = latestBlockNumber;
       const latestBlock = await web3.eth.getBlock(latestBlockNumber);
       setBlock(latestBlock);
 
