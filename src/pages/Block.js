@@ -54,7 +54,7 @@ const Block = () => {
 
       const batchRequest = new web3.BatchRequest();
       const newTransactions = [];
-
+      setTransactions([]);
       latestBlock.transactions.forEach((transactionHash) => {
         batchRequest.add(
           web3.eth.getTransaction.request(
@@ -63,7 +63,7 @@ const Block = () => {
               newTransactions.push(transaction);
               if (newTransactions.length === latestBlock.transactions.length) {
                 const filtered = newTransactions.filter((txn) => txn.hash);
-                setTransactions(filtered);
+                setTransactions(() => filtered);
               }
             }
           )
