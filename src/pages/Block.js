@@ -6,21 +6,64 @@ import {
   Grid,
   Typography,
 } from "@mui/material";
+import { DataGrid } from "@mui/x-data-grid";
 import { useEffect, useState } from "react";
 import Web3 from "web3";
 import Config from "../config";
 
 const web3 = new Web3(Config.chainProviderURL);
+const columns = [
+  {
+    field: "from",
+    headerName: "From",
+    flex: 1,
+  },
+  {
+    field: "to",
+    headerName: "To",
+    flex: 1,
+  },
+  {
+    field: "gas",
+    headerName: "Gas",
+  },
+  {
+    field: "value",
+    headerName: "Value",
+    minWidth: 300,
+    valueGetter: (params) => parseInt(params.row.value),
+  },
+];
 
 const Block = () => {
-
   const [block, setBlock] = useState();
+  const [transactions, setTransactions] = useState([]);
 
   const getLatestBlock = async () => {
     const latestBlockNumber = await web3.eth.getBlockNumber();
     const latestBlock = await web3.eth.getBlock(latestBlockNumber);
     setBlock(latestBlock);
-    console.log('latestNumber=', latestBlockNumber, latestBlock);
+
+    const batchRequest = new web3.BatchRequest();
+    const newTransactions = [];
+    batchRequest.add(
+      latestBlock.transactions.map((transactionHash) => {
+        return web3.eth.getTransaction(
+          transactionHash,
+          (error, transaction) => {
+            newTransactions.push(transaction);
+            if (newTransactions.length === latestBlock.transactions.length) {
+              const filtered = newTransactions.filter((txn) => txn.hash);
+              setTransactions(filtered);
+              console.log(filtered);
+            }
+          }
+        );
+      })
+    );
+    batchRequest.execute();
+
+    console.log("latestNumber=", latestBlockNumber, latestBlock);
   };
 
   useEffect(() => {
@@ -66,6 +109,26 @@ const Block = () => {
           </Grid>
         </CardContent>
       </Card>
+      <div style={{ height: 400, width: "100%" }}>
+        <DataGrid
+          pageSize={10}
+          rowsPerPageOptions={[10]}
+          columns={columns}
+          pagination
+          rows={transactions}
+          getRowId={(row) => {
+            if (!row.hash) {
+              console.log("row=", row);
+            }
+            return row.hash;
+          }}
+          initialState={{
+            sorting: {
+              sortModel: [{ field: "value", sort: "desc" }],
+            },
+          }}
+        />
+      </div>
     </Box>
   );
 };
