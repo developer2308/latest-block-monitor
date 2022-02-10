@@ -39,13 +39,14 @@ const columns = [
 const Block = () => {
   const [block, setBlock] = useState();
   const [transactions, setTransactions] = useState([]);
-  const [timer, setTimer] = useState();
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [lastTime, setLastTime] = useState();
   const blockNumber = useRef();
+  const timer = useRef();
 
   const getLatestBlock = async () => {
     const latestBlockNumber = await web3.eth.getBlockNumber();
-    console.log("latestNumber=", latestBlockNumber, blockNumber.current);
+
     setLastTime(new Date());
     if (latestBlockNumber !== blockNumber.current) {
       blockNumber.current = latestBlockNumber;
@@ -74,22 +75,27 @@ const Block = () => {
   };
 
   const toggle = () => {
-    if (timer) {
-      clearInterval(timer);
-      setTimer(null);
+    if (timer.current) {
+      clearInterval(timer.current);
+      timer.current = null;
+      setIsRefreshing(false);
     } else {
-      const timer = setInterval(getLatestBlock, Config.refreshInterval);
-      setTimer(timer);
+      const newTimer = setInterval(getLatestBlock, Config.refreshInterval);
+      timer.current = newTimer;
+      setIsRefreshing(true);
     }
   };
 
   useEffect(() => {
-    console.log("useEffect interval");
     const newTimer = setInterval(getLatestBlock, Config.refreshInterval);
-    setTimer(newTimer);
+    timer.current = newTimer;
+    setIsRefreshing(true);
 
     return () => {
-      clearInterval(timer);
+      if (timer.current) {
+        clearInterval(timer.current);
+        timer.current = null;
+      }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -103,7 +109,7 @@ const Block = () => {
         }}
         sx={{ mr: 2 }}
       >
-        {timer ? "Pause" : "Resume"}
+        {isRefreshing ? "Pause" : "Resume"}
       </Button>
       <span>Last updated time: {lastTime?.toLocaleTimeString()}</span>
       <Card sx={{ my: 2 }}>
@@ -151,9 +157,6 @@ const Block = () => {
           pagination
           rows={transactions}
           getRowId={(row) => {
-            if (!row.hash) {
-              console.log("row=", row);
-            }
             return row.hash;
           }}
           initialState={{
